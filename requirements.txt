@@ -1,0 +1,10 @@
+django
+reportlab
+Pillow
+python-dateutil
+asgiref
+sqlparse
+tzdata
+twilio
+requests
+python-dotenv

@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+
+{% block title %}Assign Driver - VRL Logistics{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="card border-0 shadow-lg">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0">
+                        <i class="fas fa-user-tie me-2"></i>Assign Driver to Pickup
+                    </h3>
+                </div>
+
+                <div class="card-body p-5">
+                    <!-- Request Summary -->
+                    <div class="alert alert-light border mb-4">
+                        <h6 class="text-primary mb-3">Pickup Details:</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p class="mb-1"><strong>Tracking:</strong> <code>{{ pickup_request.tracking_number }}</code></p>
+                                <p class="mb-1"><strong>Customer:</strong> {{ pickup_request.customer.first_name }} {{ pickup_request.customer.last_name }}</p>
+                                <p class="mb-1"><strong>Type:</strong> {{ pickup_request.get_parcel_type_display }}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p class="mb-1"><strong>From:</strong> {{ pickup_request.sender_city }}</p>
+                                <p class="mb-1"><strong>To:</strong> {{ pickup_request.receiver_city }}</p>
+                                <p class="mb-1"><strong>Date:</strong> {{ pickup_request.pickup_date|date:"M d, Y" }}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Driver Selection Form -->
+                    <form method="post">
+                        {% csrf_token %}
+
+                        <label class="form-label mb-3">
+                            <i class="fas fa-users me-2"></i><strong>Select Driver to Assign</strong>
+                        </label>
+
+                        {% if drivers %}
+                            <div class="row g-2">
+                                {% for driver in drivers %}
+                                    <div class="col-md-6">
+                                        <div class="card border h-100 cursor-pointer driver-card" onclick="selectDriver('{{ driver.id }}')">
+                                            <div class="card-body">
+                                                <div class="form-check">
+                                                    <input class="form-check-input driver-radio" type="radio" name="driver_id" id="driver_{{ driver.id }}" value="{{ driver.id }}">
+                                                    <label class="form-check-label w-100" for="driver_{{ driver.id }}">
+                                                        <h6 class="mb-1">
+                                                            <i class="fas fa-user-circle me-2"></i>{{ driver.first_name }} {{ driver.last_name }}
+                                                        </h6>
+                                                        <p class="text-muted mb-1 small">
+                                                            <i class="fas fa-envelope me-1"></i>{{ driver.email }}
+                                                        </p>
+                                                        {% if driver.profile.phone_number %}
+                                                            <p class="text-muted mb-0 small">
+                                                                <i class="fas fa-phone me-1"></i>{{ driver.profile.phone_number }}
+                                                            </p>
+                                                        {% endif %}
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+
+                            <div class="d-flex gap-2 mt-5">
+                                <button type="submit" class="btn btn-success btn-lg">
+                                    <i class="fas fa-check-circle me-2"></i>Assign Driver
+                                </button>
+                                <a href="{% url 'admin_dashboard' %}" class="btn btn-outline-secondary btn-lg">
+                                    <i class="fas fa-arrow-left me-2"></i>Back
+                                </a>
+                            </div>
+                        {% else %}
+                            <div class="alert alert-warning" role="alert">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                No drivers available. Please add drivers first.
+                            </div>
+                            <a href="{% url 'admin_dashboard' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Back
+                            </a>
+                        {% endif %}
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .driver-card {
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    .driver-card:hover {
+        border-color: #0d6efd !important;
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+    }
+    .driver-card input[type="radio"]:checked ~ .form-check-label,
+    input[type="radio"]:checked ~ .driver-card {
+        border-color: #0d6efd !important;
+    }
+</style>
+
+<script>
+function selectDriver(driverId) {
+    document.getElementById('driver_' + driverId).checked = true;
+}
+</script>
+{% endblock %}

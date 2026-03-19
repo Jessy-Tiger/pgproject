@@ -1,0 +1,194 @@
+{% extends 'base.html' %}
+
+{% block title %}Create Pickup Request - VRL Logistics{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="card shadow-lg border-0">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0">
+                        <i class="fas fa-plus-circle me-2"></i>Create New Pickup Request
+                    </h3>
+                </div>
+
+                <div class="card-body p-5">
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+
+                        <!-- Sender Information -->
+                        <h5 class="mb-4 text-primary">
+                            <i class="fas fa-box me-2"></i>Sender Information
+                        </h5>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Full Name</label>
+                                {{ form.sender_name }}
+                                {% if form.sender_name.errors %}
+                                    <div class="invalid-feedback d-block">{{ form.sender_name.errors }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Email Address</label>
+                                {{ form.sender_email }}
+                                {% if form.sender_email.errors %}
+                                    <div class="invalid-feedback d-block">{{ form.sender_email.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Phone Number</label>
+                                {{ form.sender_phone }}
+                                {% if form.sender_phone.errors %}
+                                    <div class="invalid-feedback d-block">{{ form.sender_phone.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Street Address</label>
+                            {{ form.sender_address }}
+                            {% if form.sender_address.errors %}
+                                <div class="invalid-feedback d-block">{{ form.sender_address.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">City</label>
+                                {{ form.sender_city }}
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">State</label>
+                                {{ form.sender_state }}
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">Zip Code</label>
+                                {{ form.sender_zipcode }}
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <!-- Receiver Information -->
+                        <h5 class="mb-4 text-primary">
+                            <i class="fas fa-user me-2"></i>Receiver Information
+                        </h5>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Full Name</label>
+                                {{ form.receiver_name }}
+                                {% if form.receiver_name.errors %}
+                                    <div class="invalid-feedback d-block">{{ form.receiver_name.errors }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Phone Number</label>
+                                {{ form.receiver_phone }}
+                                {% if form.receiver_phone.errors %}
+                                    <div class="invalid-feedback d-block">{{ form.receiver_phone.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Street Address</label>
+                            {{ form.receiver_address }}
+                            {% if form.receiver_address.errors %}
+                                <div class="invalid-feedback d-block">{{ form.receiver_address.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">City</label>
+                                {{ form.receiver_city }}
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">State</label>
+                                {{ form.receiver_state }}
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">Zip Code</label>
+                                {{ form.receiver_zipcode }}
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <!-- Parcel Information -->
+                        <h5 class="mb-4 text-primary">
+                            <i class="fas fa-package me-2"></i>Parcel Information
+                        </h5>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Parcel Type</label>
+                                {{ form.parcel_type }}
+                                {% if form.parcel_type.errors %}
+                                    <div class="invalid-feedback d-block">{{ form.parcel_type.errors }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Weight (kg)</label>
+                                {{ form.parcel_weight }}
+                                {% if form.parcel_weight.errors %}
+                                    <div class="invalid-feedback d-block">{{ form.parcel_weight.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Parcel Description</label>
+                            {{ form.parcel_description }}
+                        </div>
+
+                        <hr class="my-4">
+
+                        <!-- Pickup Details -->
+                        <h5 class="mb-4 text-primary">
+                            <i class="fas fa-calendar me-2"></i>Pickup Details
+                        </h5>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Pickup Date</label>
+                                {{ form.pickup_date }}
+                                {% if form.pickup_date.errors %}
+                                    <div class="invalid-feedback d-block">{{ form.pickup_date.errors }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Pickup Time</label>
+                                {{ form.pickup_time }}
+                                {% if form.pickup_time.errors %}
+                                    <div class="invalid-feedback d-block">{{ form.pickup_time.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label">Additional Notes</label>
+                            {{ form.additional_notes }}
+                        </div>
+
+                        <!-- Buttons -->
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-check-circle me-2"></i>Create Request
+                            </button>
+                            <a href="{% url 'customer_dashboard' %}" class="btn btn-outline-secondary btn-lg">
+                                <i class="fas fa-times-circle me-2"></i>Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

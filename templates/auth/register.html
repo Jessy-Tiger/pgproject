@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+
+{% block title %}Register - VRL Logistics{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-lg border-0">
+                <div class="card-body p-5">
+                    <h3 class="card-title text-center mb-4 text-primary">
+                        <i class="fas fa-user-plus me-2"></i>Create Account
+                    </h3>
+
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="id_first_name" class="form-label">
+                                    <i class="fas fa-user me-2"></i>First Name
+                                </label>
+                                <input type="text" class="form-control" id="id_first_name" name="first_name" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="id_last_name" class="form-label">
+                                    <i class="fas fa-user me-2"></i>Last Name
+                                </label>
+                                <input type="text" class="form-control" id="id_last_name" name="last_name" required>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="id_email" class="form-label">
+                                <i class="fas fa-envelope me-2"></i>Email Address
+                            </label>
+                            <input type="email" class="form-control" id="id_email" name="email" required>
+                            <small class="form-text text-muted">We'll use this as your username</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="id_password1" class="form-label">
+                                <i class="fas fa-lock me-2"></i>Password
+                            </label>
+                            <input type="password" class="form-control" id="id_password1" name="password1" required>
+                            <small class="form-text text-muted">Must be at least 8 characters</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="id_password2" class="form-label">
+                                <i class="fas fa-lock me-2"></i>Confirm Password
+                            </label>
+                            <input type="password" class="form-control" id="id_password2" name="password2" required>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100 py-2">
+                            <i class="fas fa-user-plus me-2"></i>Register
+                        </button>
+                    </form>
+
+                    <hr class="my-4">
+
+                    <p class="text-center mb-0">
+                        Already have an account?
+                        <a href="{% url 'login' %}" class="text-decoration-none">Login here</a>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

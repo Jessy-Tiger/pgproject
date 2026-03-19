@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+
+{% block title %}Complete Profile - VRL Logistics{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="row">
+        <div class="col-lg-6 mx-auto">
+            <div class="card border-0 shadow-lg">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0">
+                        <i class="fas fa-user-check me-2"></i>Complete Your Profile
+                    </h3>
+                </div>
+
+                <div class="card-body p-5">
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+
+                        <div class="mb-3">
+                            <label for="id_email" class="form-label">
+                                <i class="fas fa-envelope me-2"></i>Email Address
+                            </label>
+                            {{ form.email }}
+                        </div>
+                        <div class="mb-3">
+                            <label for="id_phone_number" class="form-label">
+                                <i class="fas fa-phone me-2"></i>Phone Number
+                            </label>
+                            {{ form.phone_number }}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="id_address" class="form-label">
+                                <i class="fas fa-map-marker-alt me-2"></i>Street Address
+                            </label>
+                            {{ form.address }}
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="id_city" class="form-label">
+                                    <i class="fas fa-city me-2"></i>City
+                                </label>
+                                {{ form.city }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="id_state" class="form-label">
+                                    <i class="fas fa-map me-2"></i>State
+                                </label>
+                                {{ form.state }}
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="id_zipcode" class="form-label">
+                                <i class="fas fa-mailbox me-2"></i>Zip Code
+                            </label>
+                            {{ form.zipcode }}
+                        </div>
+
+                        <button type="submit" class="btn btn-primary btn-lg w-100">
+                            <i class="fas fa-save me-2"></i>Save Profile
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

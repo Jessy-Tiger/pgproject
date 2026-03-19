@@ -1,0 +1,248 @@
+{% extends 'base.html' %}
+
+{% block title %}Request Details - VRL Logistics{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary mb-3">
+                <i class="fas fa-arrow-left me-2"></i>Back
+            </a>
+            <h2 class="mb-0">
+                <i class="fas fa-box me-2 text-primary"></i>Pickup Request Details
+            </h2>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Left Column -->
+        <div class="col-lg-8">
+            <!-- Status Timeline -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">
+                        <i class="fas fa-tasks me-2"></i>Status Timeline
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="timeline">
+                        {% for log in activity_logs %}
+                            <div class="timeline-item">
+                                <div class="timeline-marker">
+                                    <i class="fas fa-check-circle text-success"></i>
+                                </div>
+                                <div class="timeline-content">
+                                    <h6 class="mb-1">{{ log.action }}</h6>
+                                    <p class="text-muted small mb-0">{{ log.timestamp|date:"M d, Y - g:i A" }}</p>
+                                    {% if log.notes %}
+                                        <p class="text-muted small mt-2">{{ log.notes }}</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Request Details -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i>Request Information
+                    </h5>
+                    <span class="badge bg-primary">{{ pickup_request.get_status_display }}</span>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <p><strong>Tracking Number:</strong></p>
+                            <code class="text-primary">{{ pickup_request.tracking_number }}</code>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Status:</strong></p>
+                            <p>{{ pickup_request.get_status_display }}</p>
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <h6 class="text-primary mb-3">Sender Information</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p class="mb-1"><strong>Name:</strong> {{ pickup_request.sender_name }}</p>
+                            <p class="mb-1"><strong>Phone:</strong> {{ pickup_request.sender_phone }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p class="mb-1"><strong>Email:</strong> {{ pickup_request.sender_email }}</p>
+                        </div>
+                    </div>
+                    <p class="text-muted small">
+                        {{ pickup_request.sender_address }}<br>
+                        {{ pickup_request.sender_city }}, {{ pickup_request.sender_state }} {{ pickup_request.sender_zipcode }}
+                    </p>
+
+                    <hr>
+
+                    <h6 class="text-primary mb-3">Receiver Information</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p class="mb-1"><strong>Name:</strong> {{ pickup_request.receiver_name }}</p>
+                            <p class="mb-1"><strong>Phone:</strong> {{ pickup_request.receiver_phone }}</p>
+                        </div>
+                    </div>
+                    <p class="text-muted small">
+                        {{ pickup_request.receiver_address }}<br>
+                        {{ pickup_request.receiver_city }}, {{ pickup_request.receiver_state }} {{ pickup_request.receiver_zipcode }}
+                    </p>
+
+                    <hr>
+
+                    <h6 class="text-primary mb-3">Parcel Information</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Type:</strong> {{ pickup_request.get_parcel_type_display }}</p>
+                            <p><strong>Weight:</strong> {{ pickup_request.parcel_weight }} kg</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Pickup Date:</strong> {{ pickup_request.pickup_date|date:"M d, Y" }}</p>
+                            <p><strong>Pickup Time:</strong> {{ pickup_request.pickup_time }}</p>
+                        </div>
+                    </div>
+
+                    {% if pickup_request.parcel_description %}
+                        <p><strong>Description:</strong> {{ pickup_request.parcel_description }}</p>
+                    {% endif %}
+
+                    {% if pickup_request.additional_notes %}
+                        <p><strong>Additional Notes:</strong> {{ pickup_request.additional_notes }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column -->
+        <div class="col-lg-4">
+            <!-- Summary Card -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">
+                        <i class="fas fa-summary me-2"></i>Summary
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="summary-item mb-3 pb-3 border-bottom">
+                        <p class="text-muted small mb-1">Current Status</p>
+                        <h6 class="mb-0">
+                            {% if pickup_request.status == 'pending' %}
+                                <span class="badge bg-warning">Pending Review</span>
+                            {% elif pickup_request.status == 'accepted' %}
+                                <span class="badge bg-info">Accepted by Admin</span>
+                            {% elif pickup_request.status == 'assigned' %}
+                                <span class="badge bg-secondary">Assigned to Driver</span>
+                            {% elif pickup_request.status == 'picked_up' %}
+                                <span class="badge bg-primary">Picked Up</span>
+                            {% elif pickup_request.status == 'in_transit' %}
+                                <span class="badge bg-primary">In Transit</span>
+                            {% elif pickup_request.status == 'delivered' %}
+                                <span class="badge bg-success">Delivered</span>
+                            {% elif pickup_request.status == 'rejected' %}
+                                <span class="badge bg-danger">Rejected</span>
+                            {% endif %}
+                        </h6>
+                    </div>
+
+                    {% if pickup_request.estimated_cost > 0 %}
+                        <div class="summary-item mb-3 pb-3 border-bottom">
+                            <p class="text-muted small mb-1">Estimated Cost</p>
+                            <h6 class="mb-0">₹{{ pickup_request.estimated_cost|floatformat:2 }}</h6>
+                        </div>
+                    {% endif %}
+
+                    <div class="summary-item mb-3 pb-3 border-bottom">
+                        <p class="text-muted small mb-1">Created On</p>
+                        <h6 class="mb-0">{{ pickup_request.created_at|date:"M d, Y" }}</h6>
+                    </div>
+
+                    {% if pickup_request.assigned_driver %}
+                        <div class="summary-item mb-3">
+                            <p class="text-muted small mb-1">Assigned Driver</p>
+                            <h6 class="mb-0">{{ pickup_request.assigned_driver.first_name }} {{ pickup_request.assigned_driver.last_name }}</h6>
+                            <p class="text-muted small">{{ pickup_request.assigned_driver.email }}</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if pickup_request.invoice %}
+                <!-- Invoice Card -->
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">
+                            <i class="fas fa-receipt me-2"></i>Invoice
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>Invoice #:</strong> {{ pickup_request.invoice.invoice_number }}</p>
+                        <p><strong>Total:</strong> ₹{{ pickup_request.invoice.total_amount|floatformat:2 }}</p>
+                        <p><strong>Status:</strong> 
+                            {% if pickup_request.invoice.is_paid %}
+                                <span class="badge bg-success">Paid</span>
+                            {% else %}
+                                <span class="badge bg-warning">Unpaid</span>
+                            {% endif %}
+                        </p>
+                        {% if pickup_request.invoice.pdf_file %}
+                            <a href="{{ pickup_request.invoice.pdf_file.url }}" class="btn btn-sm btn-outline-primary w-100">
+                                <i class="fas fa-download me-2"></i>Download PDF
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+    .timeline {
+        position: relative;
+        padding: 20px 0;
+    }
+    
+    .timeline-item {
+        display: flex;
+        margin-bottom: 30px;
+        position: relative;
+    }
+    
+    .timeline-item:not(:last-child)::before {
+        content: '';
+        position: absolute;
+        left: 20px;
+        top: 40px;
+        width: 2px;
+        height: calc(100% + 30px);
+        background: #e9ecef;
+    }
+    
+    .timeline-marker {
+        flex-shrink: 0;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: #f8f9fa;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 20px;
+        position: relative;
+        z-index: 1;
+    }
+    
+    .timeline-content {
+        flex-grow: 1;
+        padding-top: 5px;
+    }
+</style>
+{% endblock %}

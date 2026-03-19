@@ -1,0 +1,174 @@
+{% extends 'base.html' %}
+
+{% block title %}Process Request - VRL Logistics{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <!-- Request Details Card -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">
+                        <i class="fas fa-box me-2"></i>Pickup Request Details
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <p class="mb-1"><strong>Tracking Number:</strong></p>
+                            <code class="text-primary">{{ pickup_request.tracking_number }}</code>
+                        </div>
+                        <div class="col-md-6">
+                            <p class="mb-1"><strong>Customer:</strong></p>
+                            <p class="mb-0">{{ pickup_request.customer.first_name }} {{ pickup_request.customer.last_name }}</p>
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-primary">Sender</h6>
+                            <p>{{ pickup_request.sender_name }}<br>
+                            {{ pickup_request.sender_address }}<br>
+                            {{ pickup_request.sender_city }}, {{ pickup_request.sender_state }} {{ pickup_request.sender_zipcode }}<br>
+                            <small class="text-muted">{{ pickup_request.sender_phone }}</small></p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-primary">Receiver</h6>
+                            <p>{{ pickup_request.receiver_name }}<br>
+                            {{ pickup_request.receiver_address }}<br>
+                            {{ pickup_request.receiver_city }}, {{ pickup_request.receiver_state }} {{ pickup_request.receiver_zipcode }}<br>
+                            <small class="text-muted">{{ pickup_request.receiver_phone }}</small></p>
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Parcel Type:</strong> {{ pickup_request.get_parcel_type_display }}</p>
+                            <p><strong>Weight:</strong> {{ pickup_request.parcel_weight }} kg</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Pickup Date:</strong> {{ pickup_request.pickup_date|date:"M d, Y" }}</p>
+                            <p><strong>Pickup Time:</strong> {{ pickup_request.pickup_time }}</p>
+                        </div>
+                    </div>
+
+                    {% if pickup_request.parcel_description %}
+                        <hr>
+                        <p><strong>Description:</strong></p>
+                        <p>{{ pickup_request.parcel_description }}</p>
+                    {% endif %}
+
+                    {% if pickup_request.additional_notes %}
+                        <p><strong>Additional Notes:</strong></p>
+                        <p>{{ pickup_request.additional_notes }}</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Action Form Card -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-tasks me-2"></i>Process Request
+                    </h5>
+                </div>
+
+                <div class="card-body">
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+
+                        <div class="mb-3">
+                            <label class="form-label"><strong>Action:</strong></label>
+                            <div>
+                                {% for choice_value, choice_label in form.action.field.widget.choices %}
+                                    <div class="form-check">
+                                        <input type="radio" id="action_{{ choice_value }}" name="action" value="{{ choice_value }}" class="form-check-input" onchange="toggleRejectionReason()">
+                                        <label class="form-check-label" for="action_{{ choice_value }}">
+                                            {{ choice_label }}
+                                        </label>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="id_estimated_cost" class="form-label">
+                                <i class="fas fa-rupee-sign me-2"></i>Estimated Cost (₹)
+                            </label>
+                            {{ form.estimated_cost }}
+                            <small class="form-text text-muted">This is the cost customer will pay for the pickup</small>
+                            {% if form.estimated_cost.errors %}
+                                <div class="invalid-feedback d-block">{{ form.estimated_cost.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3" id="rejection_reason_div" style="display: none;">
+                            <label for="id_rejection_reason" class="form-label">
+                                <i class="fas fa-comment me-2"></i>Reason for Rejection
+                            </label>
+                            {{ form.rejection_reason }}
+                            <small class="form-text text-muted">This will be sent to the customer</small>
+                        </div>
+
+                        <div class="mb-3" id="driver_div" style="display: none;">
+                            <label for="id_assigned_driver" class="form-label">
+                                <i class="fas fa-user-tie me-2"></i>Assign Driver (Optional)
+                            </label>
+                            {{ form.assigned_driver }}
+                            <small class="form-text text-muted">Leave empty for automatic assignment to the least busy driver</small>
+                            {% if form.assigned_driver.errors %}
+                                <div class="invalid-feedback d-block">{{ form.assigned_driver.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <hr>
+
+                        <div class="d-flex gap-2">
+                            {% if pickup_request.status == 'pending' %}
+                                <button type="submit" class="btn btn-success btn-lg">
+                                    <i class="fas fa-check-circle me-2"></i>Process Request
+                                </button>
+                            {% endif %}
+                            <a href="{% url 'admin_dashboard' %}" class="btn btn-outline-secondary btn-lg">
+                                <i class="fas fa-arrow-left me-2"></i>Back
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleRejectionReason() {
+    const checkedRadio = document.querySelector('input[name="action"]:checked');
+    const action = checkedRadio ? checkedRadio.value : 'accept'; // Default to accept
+    const rejectionDiv = document.getElementById('rejection_reason_div');
+    const driverDiv = document.getElementById('driver_div');
+    
+    if (action === 'reject') {
+        rejectionDiv.style.display = 'block';
+        driverDiv.style.display = 'none';
+    } else {
+        rejectionDiv.style.display = 'none';
+        driverDiv.style.display = 'block';
+    }
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Set default action to accept if none selected
+    const actionRadios = document.querySelectorAll('input[name="action"]');
+    if (!document.querySelector('input[name="action"]:checked')) {
+        actionRadios[0].checked = true; // Select first option (accept)
+    }
+    toggleRejectionReason();
+});
+</script>
+{% endblock %}
