@@ -18,7 +18,7 @@ from .forms import (
     CustomUserCreationForm, CustomAuthenticationForm, UserProfileForm,
     PickupRequestForm, AdminActionForm, DriverStatusUpdateForm, DriverCreationForm
 )
-from .utils import send_whatsapp_notification, generate_invoice_pdf
+from .email_service import send_notification_email
 
 # Configure logger for views
 logger = logging.getLogger(__name__)
@@ -165,33 +165,31 @@ def whatsapp_password_reset(request):
             expires_at=expires_at
         )
         
-        # Format phone number for WhatsApp
-        whatsapp_phone = phone_number
-        if not whatsapp_phone.startswith('+'):
-            whatsapp_phone = '+91' + whatsapp_phone.lstrip('0')
-        
-        # Send OTP via WhatsApp
-        from .utils import send_whatsapp_message
-        message = f"""🔐 *VRL Logistics - Password Reset*
+        # Send OTP via Email
+        from .email_service import send_notification_email
+        email_message = f"""🔐 VRL Logistics - Password Reset
 
 Your password reset OTP is:
 
-*{otp_code}*
+{otp_code}
 
 This OTP will expire in 10 minutes.
 
 Do not share this code with anyone.
 
-If you didn't request this, please ignore this message."""
+If you didn't request this, please ignore this message.
+
+---
+VRL Logistics Team"""
         
-        message_sid = send_whatsapp_message(
-            phone_number=whatsapp_phone,
-            message=message,
-            message_type='password_reset_otp'
+        email_sent = send_notification_email(
+            subject='Password Reset OTP - VRL Logistics',
+            message=email_message,
+            recipient_list=[user.email]
         )
         
-        if message_sid:
-            messages.success(request, f'OTP sent to {phone_number}. Please check your WhatsApp.')
+        if email_sent:
+            messages.success(request, f'OTP sent to {user.email}. Please check your email.')
             return redirect('whatsapp_otp_verify', user_id=user.id)
         else:
             messages.error(request, 'Failed to send OTP. Please try again.')
@@ -387,12 +385,8 @@ def create_pickup_request(request):
                 status_after='pending'
             )
             
-            # Send WhatsApp notifications
-            send_whatsapp_notification(
-                pickup_request=pickup_request,
-                notification_type='new_request',
-                recipient_role='admin'
-            )
+            # Note: Email notifications are sent automatically via Django signals
+            # when the PickupRequest is created (see signals.py)
             
             # Inform user and redirect to their requests list
             messages.success(request,
@@ -598,19 +592,8 @@ def process_request(request, pickup_id):
                     status_after='pending_driver_acceptance'
                 )
                 
-                # Send acceptance notification to customer
-                send_whatsapp_notification(
-                    pickup_request=pickup_request,
-                    notification_type='request_accepted',
-                    recipient_role='customer'
-                )
-                
-                # Send assignment email to driver
-                send_whatsapp_notification(
-                    pickup_request=pickup_request,
-                    notification_type='driver_assigned',
-                    recipient_role='driver'
-                )
+                # Note: Email notifications are sent automatically via Django signals
+                # when the PickupRequest status changes (see signals.py)
                 
                 messages.success(request, f'Request accepted and assigned to {assigned_driver.first_name} {assigned_driver.last_name}!')
                 
@@ -629,13 +612,7 @@ def process_request(request, pickup_id):
                     notes=rejection_reason
                 )
                 
-                # Send rejection notification
-                send_whatsapp_notification(
-                    pickup_request=pickup_request,
-                    notification_type='request_rejected',
-                    recipient_role='customer',
-                    reason=rejection_reason
-                )
+                # Note: Email notifications are sent automatically via Django signals
                 
                 messages.success(request, 'Request rejected.')
             
@@ -679,12 +656,7 @@ def assign_driver(request, pickup_id):
             status_after='pending_driver_acceptance'
         )
         
-        # Send notification to driver
-        send_whatsapp_notification(
-            pickup_request=pickup_request,
-            notification_type='driver_assigned',
-            recipient_role='driver'
-        )
+        # Note: Email notifications are sent automatically via Django signals
         
         messages.success(request, 'Driver assigned successfully!')
         return redirect('admin_dashboard')
@@ -864,12 +836,7 @@ def update_pickup_status(request, pickup_id):
                 notes=notes
             )
             
-            # Send notification to customer
-            send_whatsapp_notification(
-                pickup_request=pickup_request,
-                notification_type='assignment_accepted',
-                recipient_role='driver'
-            )
+            # Note: Email notifications are sent automatically via Django signals
             
             messages.success(request, f'Status updated to {new_status}!')
             return redirect('driver_assigned_pickups')
@@ -907,46 +874,11 @@ def accept_assignment(request, pickup_id):
         status_after='assigned'
     )
     
-    # Send emails with error handling - don't let email failures break the user workflow
-    whatsapp_sent = True
-    try:
-        # Send acceptance notification to customer
-        if not send_whatsapp_notification(
-            pickup_request=pickup_request,
-            notification_type='request_accepted',
-            recipient_role='customer'
-        ):
-            whatsapp_sent = False
-    except Exception as e:
-        logger.error(f"Failed to send acceptance notification to customer for pickup {pickup_id}: {str(e)}")
-        whatsapp_sent = False
+    # Email notifications are sent automatically via Django signals
+    # No need for manual notification sending
     
-    try:
-        # Send confirmation notification to driver
-        if not send_whatsapp_notification(
-            pickup_request=pickup_request,
-            notification_type='assignment_accepted',
-            recipient_role='driver'
-        ):
-            whatsapp_sent = False
-    except Exception as e:
-        logger.error(f"Failed to send confirmation notification to driver for pickup {pickup_id}: {str(e)}")
-        whatsapp_sent = False
-    
-    try:
-        # Send confirmation notification to admin
-        if not send_whatsapp_notification(
-            pickup_request=pickup_request,
-            notification_type='assignment_accepted',
-            recipient_role='admin'
-        ):
-            whatsapp_sent = False
-    except Exception as e:
-        logger.error(f"Failed to send confirmation notification to admin for pickup {pickup_id}: {str(e)}")
-        whatsapp_sent = False
-    
-    # Show appropriate success message
-    if not whatsapp_sent:
+    # Show success message
+    if False:
         messages.warning(request, 'Assignment accepted successfully! (Some notification messages could not be sent)')
     else:
         messages.success(request, 'Assignment accepted successfully!')
@@ -984,27 +916,7 @@ def reject_assignment(request, pickup_id):
             status_after='pending_driver_acceptance'
         )
         
-        # Send notifications with error handling
-        try:
-            # Send reassignment notification to customer
-            send_whatsapp_notification(
-                pickup_request=pickup_request,
-                notification_type='assignment_reassigned',
-                recipient_role='customer',
-                reason='Driver reassigned'
-            )
-        except Exception as e:
-            logger.error(f"Failed to send reassignment notification to customer for pickup {pickup_id}: {str(e)}")
-        
-        try:
-            # Send notification to new driver
-            send_whatsapp_notification(
-                pickup_request=pickup_request,
-                notification_type='driver_assigned',
-                recipient_role='driver'
-            )
-        except Exception as e:
-            logger.error(f"Failed to send assignment notification to new driver for pickup {pickup_id}: {str(e)}")
+        # Note: Email notifications are sent automatically via Django signals
         
         messages.info(request, f'Assignment rejected and reassigned to another driver.')
     else:
@@ -1022,16 +934,7 @@ def reject_assignment(request, pickup_id):
             status_after='accepted'
         )
         
-        # Send notification to customer about lack of drivers with error handling
-        try:
-            send_whatsapp_notification(
-                pickup_request=pickup_request,
-                notification_type='assignment_waiting',
-                recipient_role='customer',
-                reason='No drivers available, will retry soon'
-            )
-        except Exception as e:
-            logger.error(f"Failed to send 'waiting' notification to customer for pickup {pickup_id}: {str(e)}")
+        # Note: Email notifications are sent automatically via Django signals
         
         messages.warning(request, 'Assignment rejected. No other drivers available - admin will handle reassignment.')
     

@@ -139,28 +139,24 @@ MEDIA_ROOT = BASE_DIR.parent / 'media'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # ============================================================
-# TWILIO WHATSAPP NOTIFICATION CONFIGURATION
+# EMAIL NOTIFICATION CONFIGURATION
 # ============================================================
-# WhatsApp notifications via Twilio API
-# See .env.example file for configuration template
+# SMTP Email configuration for sending notifications
 # ============================================================
 
-# Twilio Account Credentials
-# IMPORTANT: Use environment variables for sensitive data in production
-TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID', '')
-TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN', '')
-TWILIO_WHATSAPP_NUMBER = os.getenv('TWILIO_WHATSAPP_NUMBER', 'whatsapp:+14155238886')
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
+EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True').lower() == 'true'
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', 'passionpro251@gmail.com')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', 'fqtnkujirlslgpmf')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'passionpro251@gmail.com')
 
-# Enable/Disable WhatsApp Notifications
-WHATSAPP_NOTIFICATIONS_ENABLED = os.getenv('WHATSAPP_NOTIFICATIONS_ENABLED', 'True').lower() == 'true'
+# Enable/Disable Email Notifications
+EMAIL_NOTIFICATIONS_ENABLED = os.getenv('EMAIL_NOTIFICATIONS_ENABLED', 'True').lower() == 'true'
 
-# Message retry settings
-WHATSAPP_RETRY_ATTEMPTS = int(os.getenv('WHATSAPP_RETRY_ATTEMPTS', '3'))
-WHATSAPP_RETRY_DELAY = int(os.getenv('WHATSAPP_RETRY_DELAY', '5'))  # seconds
-
-# Admin phone number for receiving alerts and notifications
-# Format: +91XXXXXXXXXX (with country code)
-ADMIN_PHONE_NUMBER = os.getenv('ADMIN_PHONE_NUMBER', '')
+# Admin email for receiving alerts and notifications
+ADMIN_EMAIL = os.getenv('ADMIN_EMAIL', 'passionpro251@gmail.com')
 
 
 # Authentication settings
