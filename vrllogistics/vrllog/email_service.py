@@ -3,6 +3,13 @@ Email notification service for VRL Logistics.
 
 Provides centralized email sending functionality with error handling
 for order notifications, status updates, and alerts.
+
+Workflow Functions:
+- send_new_request_notification(): Admin notification for new requests
+- send_acceptance_notification(): Customer & Driver notification for acceptance
+- send_rejection_notification(): Customer notification for rejection
+- send_status_update_notification(): Admin & Customer for status changes
+- send_driver_reassignment_notification(): Notifications for driver changes
 """
 
 import logging
@@ -86,9 +93,14 @@ def send_admin_notification(subject, message, html_message=None):
     )
 
 
-def send_pickup_request_confirmation(customer_email, tracking_number, sender_name):
+# ============ WORKFLOW SPECIFIC FUNCTIONS ============
+
+def send_new_request_notification(customer_email, tracking_number, sender_name):
     """
-    Send confirmation email when customer creates a pickup request.
+    WORKFLOW 1: Send admin notification for new pickup request.
+    
+    Called when: PickupRequest.created = True
+    Recipient: ADMIN ONLY
     
     Args:
         customer_email (str): Customer email address
@@ -118,7 +130,10 @@ def send_pickup_request_confirmation(customer_email, tracking_number, sender_nam
 
 def send_request_accepted_notification(customer_email, tracking_number, driver_name=None):
     """
-    Send email when admin accepts and assigns a driver to pickup request.
+    WORKFLOW 2A: Send email to customer when request is accepted.
+    
+    Called when: status changes to 'accepted' or 'assigned'
+    Recipient: CUSTOMER ONLY
     
     Args:
         customer_email (str): Customer email address
@@ -149,7 +164,10 @@ def send_request_accepted_notification(customer_email, tracking_number, driver_n
 
 def send_driver_assignment_notification(driver_email, tracking_number, sender_name, pickup_date, time_window):
     """
-    Send email to driver when assigned a pickup request.
+    WORKFLOW 2B: Send email to driver when assigned a pickup.
+    
+    Called when: driver is assigned to request
+    Recipient: DRIVER ONLY
     
     Args:
         driver_email (str): Driver email address
@@ -180,9 +198,48 @@ def send_driver_assignment_notification(driver_email, tracking_number, sender_na
     )
 
 
+def send_request_rejection_notification(customer_email, tracking_number):
+    """
+    WORKFLOW 3: Send email to customer when request is rejected.
+    
+    Called when: status changes from 'pending' to 'rejected'
+    Recipient: CUSTOMER ONLY
+    
+    Args:
+        customer_email (str): Customer email address
+        tracking_number (str): Tracking number
+    
+    Returns:
+        bool: Success status
+    """
+    subject = f"Pickup Request Rejected - Tracking #{tracking_number}"
+    message = (
+        f"Dear Customer,\n\n"
+        f"Unfortunately, your pickup request has been rejected.\n"
+        f"Tracking Number: {tracking_number}\n\n"
+        f"Possible reasons:\n"
+        f"- Parcel type not serviceable on requested date\n"
+        f"- Location outside service area\n"
+        f"- Weight exceeds limits\n"
+        f"- Scheduling conflict\n\n"
+        f"Please create a new request or contact support.\n"
+        f"Support Email: {settings.ADMIN_EMAIL}\n\n"
+        f"Best regards,\nVRL Logistics Team"
+    )
+    
+    return send_notification_email(
+        subject=subject,
+        message=message,
+        recipient_list=[customer_email]
+    )
+
+
 def send_driver_status_update_notification(admin_email, tracking_number, driver_name, status, notes=None):
     """
-    Send email to admin when driver updates pickup status.
+    WORKFLOW 4A: Send email to admin on driver status update.
+    
+    Called when: status changes to 'picked_up', 'in_transit', 'delivered'
+    Recipient: ADMIN ONLY
     
     Args:
         admin_email (str): Admin email address
@@ -211,3 +268,62 @@ def send_driver_status_update_notification(admin_email, tracking_number, driver_
         message=message,
         recipient_list=[admin_email]
     )
+
+
+def send_customer_tracking_update_notification(customer_email, tracking_number, status, driver_name=None):
+    """
+    WORKFLOW 4B: Send tracking update email to customer.
+    
+    Called when: status changes to 'picked_up', 'in_transit', 'delivered'
+    Recipient: CUSTOMER ONLY
+    
+    Args:
+        customer_email (str): Customer email address
+        tracking_number (str): Tracking number
+        status (str): Updated status
+        driver_name (str, optional): Driver handling the parcel
+    
+    Returns:
+        bool: Success status
+    """
+    status_emoji = {
+        'picked_up': '📦',
+        'in_transit': '🚗',
+        'delivered': '✅'
+    }.get(status, '📍')
+    
+    subject = f"{status_emoji} Your Parcel {status.replace('_', ' ').title()} - #{tracking_number}"
+    message = (
+        f"Dear Customer,\n\n"
+        f"Tracking Update: {status.replace('_', ' ').upper()}\n\n"
+        f"Tracking Number: {tracking_number}\n"
+        f"Status: {status.replace('_', ' ').upper()}\n"
+        f"{f'Driver: {driver_name}' if driver_name else ''}\n\n"
+        f"Your parcel is on its way. You will receive another update once it reaches its destination.\n\n"
+        f"Track online: Visit our website with tracking number {tracking_number}\n\n"
+        f"Best regards,\nVRL Logistics Team"
+    )
+    
+    return send_notification_email(
+        subject=subject,
+        message=message,
+        recipient_list=[customer_email]
+    )
+
+
+# ============ LEGACY FUNCTIONS (kept for backward compatibility) ============
+
+def send_pickup_request_confirmation(customer_email, tracking_number, sender_name):
+    """
+    DEPRECATED: Use send_new_request_notification instead.
+    Send confirmation email when customer creates a pickup request.
+    
+    Args:
+        customer_email (str): Customer email address
+        tracking_number (str): Tracking number for the request
+        sender_name (str): Name of sender
+    
+    Returns:
+        bool: Success status
+    """
+    return send_new_request_notification(customer_email, tracking_number, sender_name)

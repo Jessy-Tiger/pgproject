@@ -114,11 +114,11 @@ def send_email_notifications(sender, instance, created, **kwargs):
             _send_new_request_admin_notification(instance)
         
         # ============ WORKFLOW 2 & 3: ADMIN ACCEPTS/REJECTS ============
-        elif old_status == 'pending' and instance.status == 'accepted':
-            print(f"   ➤ WORKFLOW 2: PENDING→ACCEPTED → Sending emails to CUSTOMER & DRIVER")
+        elif old_status == 'pending' and instance.status in ['accepted', 'assigned', 'pending_driver_acceptance']:
+            print(f"   ➤ WORKFLOW 2: PENDING→{instance.status.upper()} → Sending emails to CUSTOMER & DRIVER")
             logger.info(
-                f"[TRIGGER 2] Request accepted: Pickup #{instance.id}, "
-                f"assigned_driver={instance.assigned_driver_id}"
+                f"[TRIGGER 2] Request accepted/assigned: Pickup #{instance.id}, "
+                f"status={instance.status}, assigned_driver={instance.assigned_driver_id}"
             )
             _send_request_accepted_emails(instance)
         
@@ -135,6 +135,16 @@ def send_email_notifications(sender, instance, created, **kwargs):
                 f"status={instance.status}"
             )
             _send_driver_status_update_emails(instance, old_status)
+        
+        # ============ BONUS WORKFLOW 5: DRIVER REASSIGNMENT ============
+        # Handle driver changes (reassignment/removal)
+        if old_driver_id != instance.assigned_driver_id and not created:
+            print(f"   ➤ WORKFLOW 5: DRIVER REASSIGNMENT ({old_driver_id} → {instance.assigned_driver_id})")
+            logger.info(
+                f"[TRIGGER 5] Driver reassignment detected: Pickup #{instance.id}, "
+                f"old_driver={old_driver_id}, new_driver={instance.assigned_driver_id}"
+            )
+            _handle_driver_reassignment(instance, old_driver_id)
         
         # Clean up old state after processing
         _pickup_previous_state.pop(instance.id, None)
@@ -660,4 +670,242 @@ VRL Logistics Team
     
     except Exception as e:
         logger.error(f"Error sending customer status notification: {str(e)}")
+        return False
+
+
+# ============ WORKFLOW 5: DRIVER REASSIGNMENT → ADMIN + OLD DRIVER + NEW DRIVER ============
+
+def _handle_driver_reassignment(pickup_request, old_driver_id):
+    """
+    WORKFLOW 5: Driver reassignment detected (driver changed or removed)
+    
+    ACTIONS:
+    - Send email to OLD DRIVER (if exists) - removed from assignment
+    - Send email to NEW DRIVER (if exists) - new assignment
+    - Send email to ADMIN - reassignment alert
+    """
+    try:
+        admin_email = settings.ADMIN_EMAIL
+        
+        # Get old driver object if it exists
+        old_driver = None
+        if old_driver_id:
+            try:
+                from django.contrib.auth.models import User
+                old_driver = User.objects.get(id=old_driver_id)
+            except Exception as e:
+                logger.warning(f"Could not fetch old driver with ID {old_driver_id}: {str(e)}")
+        
+        # Step 1: Notify OLD DRIVER (if exists and was removed)
+        if old_driver and old_driver.email:
+            _send_driver_removal_notification(pickup_request, old_driver)
+        
+        # Step 2: Notify NEW DRIVER (if assigned)
+        if pickup_request.assigned_driver and pickup_request.assigned_driver.email:
+            _send_driver_reassignment_notification(pickup_request, old_driver)
+        else:
+            logger.info(f"Driver removed from pickup #{pickup_request.id}. No new driver assigned.")
+        
+        # Step 3: Notify ADMIN about reassignment
+        if admin_email:
+            _send_admin_reassignment_notification(pickup_request, old_driver)
+        
+        logger.info(
+            f"[WORKFLOW 5 ✓] Driver reassignment handled for pickup #{pickup_request.id}: "
+            f"old_driver={old_driver_id}, new_driver={pickup_request.assigned_driver_id}"
+        )
+        
+    except Exception as e:
+        logger.error(
+            f"[WORKFLOW 5 ✗] Error handling driver reassignment for pickup #{pickup_request.id}: {str(e)}",
+            exc_info=True
+        )
+
+
+def _send_driver_removal_notification(pickup_request, old_driver):
+    """Send notification to driver when removed from assignment."""
+    try:
+        subject = f"⚠️ Assignment Cancelled - #{pickup_request.tracking_number}"
+        
+        message = f"""
+Your Assignment Has Been Cancelled
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ASSIGNMENT CANCELLATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Tracking Number: {pickup_request.tracking_number}
+Status: REASSIGNED
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+REQUEST DETAILS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Sender: {pickup_request.sender_name}
+Receiver: {pickup_request.receiver_name}
+Parcel Type: {pickup_request.get_parcel_type_display()}
+Weight: {pickup_request.parcel_weight} kg
+
+Pickup Date: {pickup_request.pickup_date}
+Time: {pickup_request.pickup_time or 'Flexible'}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+REASON
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+This assignment has been cancelled and reassigned to another driver.
+No action is required from you.
+
+If you have any questions, please contact admin support.
+
+---
+VRL Logistics Driver App
+"""
+        
+        success = send_notification_email(
+            subject=subject,
+            message=message,
+            recipient_list=[old_driver.email]
+        )
+        
+        logger.debug(f"Driver removal notification for old driver {old_driver.username}: {'SENT' if success else 'FAILED'}")
+        return success
+    
+    except Exception as e:
+        logger.error(f"Error sending driver removal notification: {str(e)}")
+        return False
+
+
+def _send_driver_reassignment_notification(pickup_request, old_driver):
+    """Send notification to new driver about reassignment."""
+    try:
+        new_driver = pickup_request.assigned_driver
+        old_driver_name = old_driver.first_name if old_driver else "Previous Driver"
+        
+        subject = f"🔁 Assignment Reassigned - #{pickup_request.tracking_number}"
+        
+        message = f"""
+You Have Been Assigned a Pickup (Reassignment)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ASSIGNMENT DETAILS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Tracking Number: {pickup_request.tracking_number}
+Status: REASSIGNED TO YOU
+Previous Driver: {old_driver_name}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CUSTOMER INFORMATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Name: {pickup_request.customer.first_name} {pickup_request.customer.last_name}
+Phone: {pickup_request.sender_phone}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PICKUP LOCATION (SENDER)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Name: {pickup_request.sender_name}
+Address: {pickup_request.sender_address}
+City: {pickup_request.sender_city}, {pickup_request.sender_state} {pickup_request.sender_zipcode}
+Phone: {pickup_request.sender_phone}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+DELIVERY LOCATION (RECEIVER)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Name: {pickup_request.receiver_name}
+Address: {pickup_request.receiver_address}
+City: {pickup_request.receiver_city}, {pickup_request.receiver_state} {pickup_request.receiver_zipcode}
+Phone: {pickup_request.receiver_phone}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PARCEL INFORMATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Type: {pickup_request.get_parcel_type_display()}
+Weight: {pickup_request.parcel_weight} kg
+Description: {pickup_request.parcel_description or 'N/A'}
+Special Notes: {pickup_request.additional_notes or 'None'}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PICKUP TIME
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Date: {pickup_request.pickup_date}
+Time: {pickup_request.pickup_time or 'Flexible'}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ACTION REQUIRED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✓ Accept this reassignment via the mobile app
+✓ Arrive at the pickup location at the scheduled time
+✓ Update status as you progress through the delivery
+
+---
+VRL Logistics Driver App
+"""
+        
+        success = send_notification_email(
+            subject=subject,
+            message=message,
+            recipient_list=[new_driver.email]
+        )
+        
+        logger.debug(f"Driver reassignment notification for new driver {new_driver.username}: {'SENT' if success else 'FAILED'}")
+        return success
+    
+    except Exception as e:
+        logger.error(f"Error sending driver reassignment notification: {str(e)}")
+        return False
+
+
+def _send_admin_reassignment_notification(pickup_request, old_driver):
+    """Send notification to admin about driver reassignment."""
+    try:
+        admin_email = settings.ADMIN_EMAIL
+        old_driver_name = old_driver.first_name if old_driver else "Unknown"
+        new_driver_name = pickup_request.assigned_driver.first_name if pickup_request.assigned_driver else "Unassigned"
+        
+        subject = f"🔁 Driver Reassignment Alert - #{pickup_request.tracking_number}"
+        
+        message = f"""
+Driver Reassignment Notification
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+REASSIGNMENT DETAILS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Tracking Number: {pickup_request.tracking_number}
+Previous Driver: {old_driver_name}
+New Driver: {new_driver_name}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+REQUEST DETAILS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Sender: {pickup_request.sender_name}
+Receiver: {pickup_request.receiver_name}
+Parcel Type: {pickup_request.get_parcel_type_display()}
+Weight: {pickup_request.parcel_weight} kg
+
+Pickup Date: {pickup_request.pickup_date}
+Pickup Time: {pickup_request.pickup_time or 'Flexible'}
+
+Current Status: {pickup_request.get_status_display()}
+Last Updated: {pickup_request.updated_at.strftime('%Y-%m-%d %H:%M:%S')}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ACTION TAKEN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+The assignment has been automatically reassigned to {new_driver_name}.
+Both drivers have been notified of the change.
+
+Monitor the request in your admin dashboard.
+
+---
+VRL Logistics Admin System
+"""
+        
+        success = send_notification_email(
+            subject=subject,
+            message=message,
+            recipient_list=[admin_email]
+        )
+        
+        logger.info(f"Admin reassignment notification: {'SENT' if success else 'FAILED'}")
+        return success
+    
+    except Exception as e:
+        logger.error(f"Error sending admin reassignment notification: {str(e)}")
         return False
