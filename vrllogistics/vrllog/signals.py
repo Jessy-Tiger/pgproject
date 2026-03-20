@@ -19,11 +19,16 @@ import logging
 from django.db.models.signals import pre_save, post_save
 from django.dispatch import receiver
 from django.utils import timezone
-from .models import PickupRequest
-from .email_service import send_notification_email
+from vrllog.models import PickupRequest
+from vrllog.email_service import send_notification_email
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
+
+# CRITICAL: Print signal loading indicator
+print("=" * 80)
+print("✅ SIGNALS MODULE LOADED - vrllog.signals is active")
+print("=" * 80)
 
 # Store previous state in memory to track changes
 _pickup_previous_state = {}
@@ -51,6 +56,7 @@ def track_pickup_changes(sender, instance, **kwargs):
                     'status': old_instance.status,
                     'assigned_driver': old_instance.assigned_driver_id,
                 }
+                print(f"   [PRE-SAVE] Tracking old state for pickup #{instance.id}")
                 logger.debug(
                     f"[TRACK] Pickup #{instance.id}: "
                     f"status {old_instance.status} → {instance.status}, "
@@ -65,7 +71,7 @@ def track_pickup_changes(sender, instance, **kwargs):
 
 
 @receiver(post_save, sender=PickupRequest)
-def send_email_notifications(sender, instance, created, update_fields, **kwargs):
+def send_email_notifications(sender, instance, created, **kwargs):
     """
     POST-SAVE: Send emails based on state changes.
     
@@ -86,9 +92,14 @@ def send_email_notifications(sender, instance, created, update_fields, **kwargs)
     """
     
     try:
+        # DEBUG: Print signal trigger
+        print(f"\n🔔 SIGNAL TRIGGERED: PickupRequest #{instance.id} SAVED (created={created})")
+        
         old_state = _pickup_previous_state.get(instance.id, {})
         old_status = old_state.get('status')
         old_driver_id = old_state.get('assigned_driver')
+        
+        print(f"   Status transition: {old_status} → {instance.status}")
         
         logger.info(
             f"[POST-SAVE] Pickup #{instance.id}: "
@@ -98,11 +109,13 @@ def send_email_notifications(sender, instance, created, update_fields, **kwargs)
         
         # ============ WORKFLOW 1: NEW REQUEST ============
         if created:
+            print(f"   ➤ WORKFLOW 1: NEW REQUEST → Sending email to ADMIN")
             logger.info(f"[TRIGGER 1] New request created: Pickup #{instance.id}")
             _send_new_request_admin_notification(instance)
         
         # ============ WORKFLOW 2 & 3: ADMIN ACCEPTS/REJECTS ============
         elif old_status == 'pending' and instance.status == 'accepted':
+            print(f"   ➤ WORKFLOW 2: PENDING→ACCEPTED → Sending emails to CUSTOMER & DRIVER")
             logger.info(
                 f"[TRIGGER 2] Request accepted: Pickup #{instance.id}, "
                 f"assigned_driver={instance.assigned_driver_id}"
@@ -110,11 +123,13 @@ def send_email_notifications(sender, instance, created, update_fields, **kwargs)
             _send_request_accepted_emails(instance)
         
         elif old_status == 'pending' and instance.status == 'rejected':
+            print(f"   ➤ WORKFLOW 3: PENDING→REJECTED → Sending email to CUSTOMER")
             logger.info(f"[TRIGGER 3] Request rejected: Pickup #{instance.id}")
             _send_request_rejected_customer_notification(instance)
         
         # ============ WORKFLOW 4: DRIVER STATUS UPDATES ============
         elif old_status != instance.status and instance.status in ['picked_up', 'in_transit', 'delivered']:
+            print(f"   ➤ WORKFLOW 4: STATUS UPDATE ({old_status}→{instance.status}) → Sending emails to ADMIN & CUSTOMER")
             logger.info(
                 f"[TRIGGER 4] Driver status updated: Pickup #{instance.id}, "
                 f"status={instance.status}"

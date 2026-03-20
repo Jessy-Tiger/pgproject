@@ -46,7 +46,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'vrllog',  # Add our app here
+    'vrllog.apps.VrllogConfig',  # Add our app here
     
 ]
 
@@ -237,6 +237,12 @@ LOGGING = {
         # WhatsApp notifications logger
         'vrllog.utils': {
             'handlers': ['file_whatsapp', 'console'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        # Signal handlers logger - CRITICAL FOR DEBUG
+        'vrllog.signals': {
+            'handlers': ['console', 'file_django', 'file_error'],
             'level': 'DEBUG',
             'propagate': False,
         },
