@@ -127,16 +127,25 @@ def send_email_notifications(sender, instance, created, **kwargs):
             logger.info(f"[TRIGGER 3] Request rejected: Pickup #{instance.id}")
             _send_request_rejected_customer_notification(instance)
         
-        # ============ WORKFLOW 4: DRIVER STATUS UPDATES ============
-        elif old_status != instance.status and instance.status in ['picked_up', 'in_transit', 'delivered']:
-            print(f"   ➤ WORKFLOW 4: STATUS UPDATE ({old_status}→{instance.status}) → Sending emails to ADMIN & CUSTOMER")
+        # ============ WORKFLOW 4: DRIVER ACCEPTANCE ============
+        elif old_status == 'pending_driver_acceptance' and instance.status == 'assigned':
+            print(f"   ➤ WORKFLOW 4: DRIVER ACCEPTED!!! ({old_status}→{instance.status}) → Sending email to ADMIN")
             logger.info(
-                f"[TRIGGER 4] Driver status updated: Pickup #{instance.id}, "
+                f"[TRIGGER 4] Driver accepted assignment: Pickup #{instance.id}, "
+                f"driver={instance.assigned_driver_id}"
+            )
+            _send_driver_acceptance_admin_notification(instance)
+        
+        # ============ WORKFLOW 5: DRIVER STATUS UPDATES ============
+        elif old_status != instance.status and instance.status in ['picked_up', 'in_transit', 'delivered']:
+            print(f"   ➤ WORKFLOW 5: STATUS UPDATE ({old_status}→{instance.status}) → Sending emails to ADMIN & CUSTOMER")
+            logger.info(
+                f"[TRIGGER 5] Driver status updated: Pickup #{instance.id}, "
                 f"status={instance.status}"
             )
             _send_driver_status_update_emails(instance, old_status)
         
-        # ============ BONUS WORKFLOW 5: DRIVER REASSIGNMENT ============
+        # ============ BONUS WORKFLOW 6: DRIVER REASSIGNMENT ============
         # Handle driver changes (reassignment/removal)
         if old_driver_id != instance.assigned_driver_id and not created:
             print(f"   ➤ WORKFLOW 5: DRIVER REASSIGNMENT ({old_driver_id} → {instance.assigned_driver_id})")
@@ -517,11 +526,130 @@ VRL Logistics Team
         return False
 
 
-# ============ WORKFLOW 4: DRIVER STATUS UPDATES → ADMIN + CUSTOMER ============
+# ============ WORKFLOW 4: DRIVER ACCEPTANCE → ADMIN ONLY ============
+
+def _send_driver_acceptance_admin_notification(pickup_request):
+    """
+    WORKFLOW 4: Driver accepts assigned pickup request
+    
+    TRIGGER: pending_driver_acceptance → assigned
+    ACTION: Send email to ADMIN ONLY
+    
+    Content: Driver acceptance alert, request details, tracking info
+    """
+    try:
+        admin_email = settings.ADMIN_EMAIL
+        
+        if not admin_email:
+            logger.warning("ADMIN_EMAIL not configured in settings")
+            return False
+        
+        driver_name = pickup_request.assigned_driver.first_name if pickup_request.assigned_driver else "Driver"
+        driver_username = pickup_request.assigned_driver.username if pickup_request.assigned_driver else "Unknown"
+        
+        subject = f"✅ Driver Accepted Assignment - #{pickup_request.tracking_number}"
+        
+        message = f"""
+Driver Has Accepted Pickup Assignment
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+DRIVER ACCEPTANCE ALERT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Tracking Number: {pickup_request.tracking_number}
+Status: DRIVER ACCEPTED ✅
+Accepted At: {timezone.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+DRIVER INFORMATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Driver Name: {driver_name}
+Driver ID: {driver_username}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CUSTOMER INFORMATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Name: {pickup_request.customer.first_name} {pickup_request.customer.last_name}
+Email: {pickup_request.customer.email}
+Username: {pickup_request.customer.username}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PICKUP REQUEST DETAILS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Tracking Number: {pickup_request.tracking_number}
+Status: {pickup_request.get_status_display()}
+Created: {pickup_request.created_at.strftime('%Y-%m-%d %H:%M:%S')}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SENDER INFORMATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Name: {pickup_request.sender_name}
+Phone: {pickup_request.sender_phone}
+Address: {pickup_request.sender_address}
+City: {pickup_request.sender_city}, {pickup_request.sender_state} {pickup_request.sender_zipcode}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+RECEIVER INFORMATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Name: {pickup_request.receiver_name}
+Phone: {pickup_request.receiver_phone}
+Address: {pickup_request.receiver_address}
+City: {pickup_request.receiver_city}, {pickup_request.receiver_state} {pickup_request.receiver_zipcode}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PARCEL INFORMATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Type: {pickup_request.get_parcel_type_display()}
+Weight: {pickup_request.parcel_weight} kg
+Description: {pickup_request.parcel_description or 'N/A'}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PICKUP TIME
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Date: {pickup_request.pickup_date}
+Time: {pickup_request.pickup_time or 'Not specified'}
+Notes: {pickup_request.additional_notes or 'None'}
+
+Estimated Cost: ₹{pickup_request.estimated_cost}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STATUS TIMELINE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✓ Request Created: {pickup_request.created_at.strftime('%Y-%m-%d %H:%M:%S')}
+✓ Driver Assigned: {pickup_request.created_at.strftime('%Y-%m-%d %H:%M:%S')}
+✓ Driver Accepted: {timezone.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+The driver is ready to proceed with the pickup.
+
+---
+VRL Logistics System
+"""
+        
+        success = send_notification_email(
+            subject=subject,
+            message=message,
+            recipient_list=[admin_email]
+        )
+        
+        logger.info(
+            f"[WORKFLOW 4 ✓] Admin notification for driver acceptance "
+            f"(Pickup #{pickup_request.id}): {'SENT' if success else 'FAILED'}"
+        )
+        
+        return success
+    
+    except Exception as e:
+        logger.error(
+            f"[WORKFLOW 4 ✗] Error sending driver acceptance notification for pickup #{pickup_request.id}: {str(e)}",
+            exc_info=True
+        )
+        return False
+
+
+# ============ WORKFLOW 5: DRIVER STATUS UPDATES → ADMIN + CUSTOMER ============
 
 def _send_driver_status_update_emails(pickup_request, old_status):
     """
-    WORKFLOW 4: Driver updates status (picked_up/in_transit/delivered)
+    WORKFLOW 5: Driver updates status (picked_up/in_transit/delivered)
     
     ACTIONS:
     - Send email to ADMIN (status update alert)
@@ -540,13 +668,13 @@ def _send_driver_status_update_emails(pickup_request, old_status):
         success_customer = _send_customer_status_update_notification(pickup_request, old_status)
         
         logger.info(
-            f"[WORKFLOW 4 ✓] Status updated for pickup #{pickup_request.id}: "
+            f"[WORKFLOW 5 ✓] Status updated for pickup #{pickup_request.id}: "
             f"admin={success_admin}, customer={success_customer}"
         )
         
     except Exception as e:
         logger.error(
-            f"[WORKFLOW 4 ✗] Error in driver status update workflow for pickup #{pickup_request.id}: {str(e)}",
+            f"[WORKFLOW 5 ✗] Error in driver status update workflow for pickup #{pickup_request.id}: {str(e)}",
             exc_info=True
         )
 
@@ -673,11 +801,11 @@ VRL Logistics Team
         return False
 
 
-# ============ WORKFLOW 5: DRIVER REASSIGNMENT → ADMIN + OLD DRIVER + NEW DRIVER ============
+# ============ WORKFLOW 6: DRIVER REASSIGNMENT → ADMIN + OLD DRIVER + NEW DRIVER ============
 
 def _handle_driver_reassignment(pickup_request, old_driver_id):
     """
-    WORKFLOW 5: Driver reassignment detected (driver changed or removed)
+    WORKFLOW 6: Driver reassignment detected (driver changed or removed)
     
     ACTIONS:
     - Send email to OLD DRIVER (if exists) - removed from assignment
@@ -711,13 +839,13 @@ def _handle_driver_reassignment(pickup_request, old_driver_id):
             _send_admin_reassignment_notification(pickup_request, old_driver)
         
         logger.info(
-            f"[WORKFLOW 5 ✓] Driver reassignment handled for pickup #{pickup_request.id}: "
+            f"[WORKFLOW 6 ✓] Driver reassignment handled for pickup #{pickup_request.id}: "
             f"old_driver={old_driver_id}, new_driver={pickup_request.assigned_driver_id}"
         )
         
     except Exception as e:
         logger.error(
-            f"[WORKFLOW 5 ✗] Error handling driver reassignment for pickup #{pickup_request.id}: {str(e)}",
+            f"[WORKFLOW 6 ✗] Error handling driver reassignment for pickup #{pickup_request.id}: {str(e)}",
             exc_info=True
         )
 
