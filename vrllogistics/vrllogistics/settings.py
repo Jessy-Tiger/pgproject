@@ -142,12 +142,27 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # EMAIL NOTIFICATION CONFIGURATION
 # ============================================================
 # SMTP Email configuration for sending notifications
+# Supports both Gmail SMTP (production) and Console backend (development)
 # ============================================================
 
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# Email Backend - Switch between SMTP and Console for development
+EMAIL_DEBUG_MODE = os.getenv('EMAIL_DEBUG_MODE', 'False').lower() == 'true'
+
+if EMAIL_DEBUG_MODE:
+    # Development: Print emails to console instead of sending
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+else:
+    # Production: Send via SMTP
+    EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
+
+# SMTP Configuration for Gmail
 EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
 EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
 EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True').lower() == 'true'
+EMAIL_USE_SSL = False  # Don't use SSL if using TLS
+EMAIL_TIMEOUT = int(os.getenv('EMAIL_TIMEOUT', '10'))  # 10 second timeout
+
+# Gmail credentials (use App Password, not regular password!)
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', 'passionpro251@gmail.com')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', 'fqtnkujirlslgpmf')
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'passionpro251@gmail.com')
@@ -157,6 +172,9 @@ EMAIL_NOTIFICATIONS_ENABLED = os.getenv('EMAIL_NOTIFICATIONS_ENABLED', 'True').l
 
 # Admin email for receiving alerts and notifications
 ADMIN_EMAIL = os.getenv('ADMIN_EMAIL', 'passionpro251@gmail.com')
+
+# Email retry configuration
+EMAIL_MAX_RETRIES = int(os.getenv('EMAIL_MAX_RETRIES', '3'))
 
 
 # Authentication settings
@@ -234,6 +252,12 @@ LOGGING = {
         },
     },
     'loggers': {
+        # Email service logger
+        'vrllog.email_service': {
+            'handlers': ['console', 'file_django', 'file_error'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
         # WhatsApp notifications logger
         'vrllog.utils': {
             'handlers': ['file_whatsapp', 'console'],
