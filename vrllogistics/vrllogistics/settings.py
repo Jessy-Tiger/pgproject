@@ -160,18 +160,18 @@ EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
 EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
 EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True').lower() == 'true'
 EMAIL_USE_SSL = False  # Don't use SSL if using TLS
-EMAIL_TIMEOUT = int(os.getenv('EMAIL_TIMEOUT', '10'))  # 10 second timeout
+EMAIL_TIMEOUT = int(os.getenv('EMAIL_TIMEOUT', '60'))  # 60 second timeout
 
 # Gmail credentials (use App Password, not regular password!)
-EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', 'passionpro251@gmail.com')
-EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', 'fqtnkujirlslgpmf')
-DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'passionpro251@gmail.com')
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', 'guylocal30@gmail.com')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', 'balpjaikufeplnwc')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'guylocal30@gmail.com')
 
 # Enable/Disable Email Notifications
 EMAIL_NOTIFICATIONS_ENABLED = os.getenv('EMAIL_NOTIFICATIONS_ENABLED', 'True').lower() == 'true'
 
 # Admin email for receiving alerts and notifications
-ADMIN_EMAIL = os.getenv('ADMIN_EMAIL', 'passionpro251@gmail.com')
+ADMIN_EMAIL = os.getenv('ADMIN_EMAIL', 'guylocal30@gmail.com')
 
 # Email retry configuration
 EMAIL_MAX_RETRIES = int(os.getenv('EMAIL_MAX_RETRIES', '3'))
